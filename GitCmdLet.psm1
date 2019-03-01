@@ -6,8 +6,6 @@
 ################################################################## 
 
 function Git-Reset {
-    
-   # YOUR PARAMETERS HERE
    param(
         [parameter(Mandatory=$true)][string]$Path,
         [parameter(Mandatory=$true)][string]$Upstream,
@@ -17,7 +15,7 @@ function Git-Reset {
 
    Write-Host "Attempting to Git Reset"
 
-   Set-Location -Path $GitWorkTree
+   Set-Location -Path $Path
    git add . > $LogPath
 
    if($Hard -eq $false)
@@ -33,8 +31,6 @@ function Git-Reset {
 }
 
 function Git-ResetHard {
-    
-   # YOUR PARAMETERS HERE
    param(
         [parameter(Mandatory=$true)][string]$Path,
         [parameter(Mandatory=$true)][string]$Repo,
@@ -95,8 +91,6 @@ function Git-Pull {
         [parameter(Mandatory=$true)][string]$LogPath,
         [Parameter(Mandatory=$true)][string]$Editor
     )
-        
-   # YOUR PARAMETERS HERE
    Write-Host "Attempting to Pull Latest"
    Set-Location -Path $Path
 
