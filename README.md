@@ -40,7 +40,7 @@ If not, copy it from your service tier Add-ins folder. (This Add-in ships with N
 (This readme assumes you already have a GIT repository somewhere. It is explained from the perspective of a new user setting up source control environment on his machine and cloning the existing upstream repo to his local machine. If you do not have a source control repo yet, create one anywhere (github or Devops are good options) and upload your nav objects as text files… using the NAV-ObjectSplitter. This repo will act as your upstream origin for everything further in this document).
 
 ### Step 1
-Clone this repository to your local computer and extract the files inside.
+Clone this (NAV-RTC-Source-Control) repository to your local computer and extract the files inside.
 ### Step 2
 Copy the 2 Files “GitCmdLet.psm1” and “SourceControlMonitor.sql” to a Location on your computer and save the path for later use. This location will be referred to as {ScriptPath} from here on.
 ### Step 3
