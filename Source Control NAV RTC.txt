@@ -1,0 +1,2425 @@
+OBJECT Table 77777 SourceControlSetup
+{
+  OBJECT-PROPERTIES
+  {
+    Date=28/02/19;
+    Time=09:59:03 PM;
+    Modified=Yes;
+    Version List=;
+  }
+  PROPERTIES
+  {
+    DataPerCompany=No;
+    OnInsert=BEGIN
+               User_ID := USERID;
+               IF (Type <> Type::Repo) AND (Type <> Type::"PS Module") THEN
+               BEGIN
+                 SourceControlSetup.RESET;
+                 SourceControlSetup.SETRANGE(User_ID,USERID);
+                 SourceControlSetup.SETRANGE(Type,Type);
+                 IF NOT SourceControlSetup.ISEMPTY THEN
+                   ERROR(err001,FORMAT(Type));
+               END;
+             END;
+
+    OnRename=BEGIN
+               ERROR(err003);
+             END;
+
+    LookupPageID=Page77779;
+    DrillDownPageID=Page77779;
+  }
+  FIELDS
+  {
+    { 10  ;   ;User_ID             ;Code50         }
+    { 20  ;   ;Type                ;Option        ;OptionString=Repo,Text Editor,Compare Tool,PS Module }
+    { 30  ;   ;Local Repo Path     ;Text250        }
+    { 31  ;   ;Local Project Path  ;Text250        }
+    { 35  ;   ;Name                ;Text100        }
+    { 40  ;   ;Remote Repo Path    ;Text250        }
+    { 45  ;   ;Upstream Repo name  ;Text100        }
+    { 50  ;   ;Branch              ;Text100        }
+    { 60  ;   ;DB Server           ;Text50         }
+    { 70  ;   ;DB Name             ;Text50         }
+    { 500 ;   ;Default             ;Boolean       ;OnValidate=BEGIN
+                                                                IF (Type = Type::Repo) AND Default THEN
+                                                                BEGIN
+                                                                  SourceControlSetup.RESET;
+                                                                  SourceControlSetup.SETRANGE(User_ID,USERID);
+                                                                  SourceControlSetup.SETRANGE(Default,TRUE);
+                                                                  IF SourceControlSetup.FINDFIRST THEN
+                                                                  BEGIN
+                                                                    SourceControlSetup.Default := FALSE;
+                                                                    SourceControlSetup.MODIFY;
+                                                                  END;
+                                                                END ELSE
+                                                                  ERROR(err002);
+                                                              END;
+                                                               }
+  }
+  KEYS
+  {
+    {    ;User_ID,Type,Name                       ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+    VAR
+      err001@1000 : TextConst 'ENU=You can only have one entry of type %1';
+      err002@1001 : TextConst 'ENU=Default can only be set for Repo''s';
+      SourceControlSetup@1002 : Record 77777;
+      err003@1003 : TextConst 'ENU=Rename is not Allowed, Please delete and recreate the record';
+
+    BEGIN
+    END.
+  }
+}
+
+OBJECT Table 77778 SourceControlMonitor
+{
+  OBJECT-PROPERTIES
+  {
+    Date=01/03/19;
+    Time=07:43:21 AM;
+    Modified=Yes;
+    Version List=;
+  }
+  PROPERTIES
+  {
+    DataPerCompany=No;
+  }
+  FIELDS
+  {
+    { 1   ;   ;NavisionAuditID     ;Integer       ;AutoIncrement=Yes }
+    { 2   ;   ;Changed             ;DateTime       }
+    { 3   ;   ;User_ID             ;Code50         }
+    { 4   ;   ;ObjectType          ;Option        ;OptionCaptionML=ENU=TableData,Table,,Report,,Codeunit,XMLport,MenuSuite,Page,Query,System,FieldNumber;
+                                                   OptionString=TableData,Table,,Report,,Codeunit,XMLport,MenuSuite,Page,Query,System,FieldNumber }
+    { 5   ;   ;ObjectID            ;Integer        }
+    { 6   ;   ;ObjectName          ;Text30         }
+    { 7   ;   ;DatabaseName        ;Text250        }
+    { 8   ;   ;ChangeType          ;Text3          }
+    { 9   ;   ;VersionList         ;Text80         }
+    { 10  ;   ;CompanyName         ;Text30         }
+  }
+  KEYS
+  {
+    {    ;NavisionAuditID                         ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+
+    BEGIN
+    END.
+  }
+}
+
+OBJECT Page 77777 Source Control
+{
+  OBJECT-PROPERTIES
+  {
+    Date=01/03/19;
+    Time=11:01:50 AM;
+    Modified=Yes;
+    Version List=;
+  }
+  PROPERTIES
+  {
+    InsertAllowed=No;
+    DeleteAllowed=No;
+    ModifyAllowed=No;
+    SourceTable=Table2000000001;
+    PageType=ListPlus;
+    PromotedActionCategoriesML=ENU=New,Process,Reports,View,Compare,Pull,Export / Import,Git;
+    OnOpenPage=BEGIN
+                 RESET;
+                 FILTERGROUP(10);
+                 SETFILTER(Type,'%1|%2|%3|%4|%5|%6|%7|%8',1,3,4,5,6,7,8,9);
+                 FILTERGROUP(0);
+                 FINDFIRST;
+
+                 ReadSetup;
+                 OpenPsRunspace;
+               END;
+
+    OnClosePage=BEGIN
+                  ClosePsRunspace;
+                END;
+
+    OnAfterGetRecord=BEGIN
+                       ColorChange;
+                     END;
+
+    OnDeleteRecord=VAR
+                     DeleteFile@1101770000 : File;
+                   BEGIN
+                     GetFile1(SCCurrentRepo,Rec,FALSE);
+                     IF DeleteFile.OPEN(FileName1) THEN
+                     BEGIN
+                       DeleteFile.CLOSE;
+                       ERASE(FileName1);
+                     END;
+                   END;
+
+    OnAfterGetCurrRecord=BEGIN
+                           ColorChange;
+                         END;
+
+    ActionList=ACTIONS
+    {
+      { 1900000003;0 ;ActionContainer;
+                      ActionContainerType=RelatedInformation }
+      { 24      ;1   ;ActionGroup;
+                      CaptionML=ENU=Objects }
+      { 23      ;2   ;Action    ;
+                      CaptionML=ENU=&All;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=AllLines;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 FilterObjects(0); // 0 is handled as all in function
+                               END;
+                                }
+      { 1       ;2   ;Action    ;
+                      CaptionML=ENU=Ta&ble;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Table;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 FilterObjects(1);
+                               END;
+                                }
+      { 22      ;2   ;Action    ;
+                      CaptionML=ENU=Pa&ge;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=TaskPage;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 FilterObjects(8);
+                               END;
+                                }
+      { 17      ;2   ;Action    ;
+                      CaptionML=ENU=Re&port;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Report;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 FilterObjects(3);
+                               END;
+                                }
+      { 20      ;2   ;Action    ;
+                      CaptionML=ENU=&Codeunit;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=DesignCodeBehind;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 FilterObjects(5);
+                               END;
+                                }
+      { 19      ;2   ;Action    ;
+                      CaptionML=ENU=&XMLport;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=XMLFile;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 FilterObjects(6);
+                               END;
+                                }
+      { 16      ;2   ;Action    ;
+                      CaptionML=ENU=&Query;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Questionnaire;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 FilterObjects(9);
+                               END;
+                                }
+      { 21      ;2   ;Action    ;
+                      CaptionML=ENU=Menu&Suite;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=ExpandAll;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 FilterObjects(7);
+                               END;
+                                }
+      { 1900000004;0 ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 15      ;1   ;ActionGroup;
+                      CaptionML=ENU=Vie&w }
+      { 14      ;2   ;Action    ;
+                      Name=AcViewCurr;
+                      CaptionML=ENU=C&urrent File;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=XMLFile;
+                      PromotedCategory=Category4;
+                      OnAction=BEGIN
+                                 ViewFile(TRUE);
+                               END;
+                                }
+      { 13      ;2   ;Action    ;
+                      Name=AcViewRepo;
+                      CaptionML=ENU=R&epo File;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=XMLFileGroup;
+                      PromotedCategory=Category4;
+                      OnAction=BEGIN
+                                 ViewFile(FALSE);
+                               END;
+                                }
+      { 12      ;2   ;Action    ;
+                      Name=AcViewHistory;
+                      CaptionML=ENU=&File History;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=CreateXMLFile;
+                      PromotedCategory=Category4;
+                      OnAction=BEGIN
+                                 ViewHistory(TRUE);
+                               END;
+                                }
+      { 7       ;2   ;Action    ;
+                      Name=AcViewRepoHistory;
+                      CaptionML=ENU=&Repo History;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=CreateDocuments;
+                      PromotedCategory=Category4;
+                      OnAction=BEGIN
+                                 ViewHistory(FALSE);
+                               END;
+                                }
+      { 25      ;2   ;Action    ;
+                      Name=AcViewRepoStatus;
+                      CaptionML=ENU=Repo S&tatus;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Status;
+                      PromotedCategory=Category4;
+                      OnAction=BEGIN
+                                 ViewStatus;
+                               END;
+                                }
+      { 11      ;1   ;ActionGroup;
+                      CaptionML=ENU=Compa&re }
+      { 10      ;2   ;Action    ;
+                      Name=AcCompCurr;
+                      CaptionML=ENU=C&urrent DB File vs Selected Repo File;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=CompareContacts;
+                      PromotedCategory=Category5;
+                      OnAction=BEGIN
+                                 CompareFile(TRUE);
+                               END;
+                                }
+      { 9       ;2   ;Action    ;
+                      Name=AcCompRepo;
+                      CaptionML=ENU=Current R&epo File vs Selected Repo File;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=CompareCOA;
+                      PromotedCategory=Category5;
+                      OnAction=BEGIN
+                                 CompareFile(FALSE);
+                               END;
+                                }
+      { 8       ;1   ;ActionGroup;
+                      CaptionML=ENU=&Pull }
+      { 6       ;2   ;Action    ;
+                      Name=AcPullRepo;
+                      CaptionML=ENU=Pull Latest Version of Entire &Repo;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=GetSourceDoc;
+                      PromotedCategory=Category6;
+                      OnAction=BEGIN
+                                 IF NOT ResetHard THEN
+                                   ERROR(txt_Abort);
+                               END;
+                                }
+      { 5       ;1   ;ActionGroup;
+                      CaptionML=ENU=Export / Import }
+      { 4       ;2   ;Action    ;
+                      Name=AcExport;
+                      CaptionML=ENU=&Export to Repo;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=ExportElectronicDocument;
+                      PromotedCategory=Category7;
+                      OnAction=BEGIN
+                                 ExportToRepo(FALSE);
+                               END;
+                                }
+      { 2       ;2   ;Action    ;
+                      Name=AcExportAll;
+                      CaptionML=ENU=Export All To Repo;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=ExportElectronicDocument;
+                      PromotedCategory=Category7;
+                      OnAction=BEGIN
+                                 ExportAllToRepo(FALSE);
+                               END;
+                                }
+      { 3       ;2   ;Action    ;
+                      Name=AcImport;
+                      CaptionML=ENU=&Import From Repo;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Import;
+                      PromotedCategory=Category7;
+                      OnAction=BEGIN
+                                 IF ResetHard THEN
+                                   ImportFromRepo
+                                 ELSE
+                                   ERROR(txt_Abort);
+                               END;
+                                }
+      { 29      ;1   ;ActionGroup;
+                      CaptionML=ENU=Git }
+      { 28      ;2   ;Action    ;
+                      Name=AcCommit;
+                      CaptionML=ENU=Stage and Commit;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Holiday;
+                      PromotedCategory=Category8;
+                      OnAction=BEGIN
+                                 DoCommit;
+                               END;
+                                }
+      { 30      ;2   ;Action    ;
+                      Name=AcPush;
+                      CaptionML=ENU=Push;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=MoveUp;
+                      PromotedCategory=Category8;
+                      OnAction=VAR
+                                 lTempPath@1000 : Text;
+                               BEGIN
+                                 DoPush;
+                               END;
+                                }
+      { 32      ;2   ;Action    ;
+                      Name=AcSetupLocalRepos;
+                      CaptionML=ENU=Setup Local Repo's;
+                      Image=XMLSetup;
+                      OnAction=BEGIN
+                                 SetupRepos;
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1900000001;0;Container;
+                ContainerType=ContentArea }
+
+    { 1901084101;1;Group  ;
+                CaptionML=ENU=Settings and Filters;
+                GroupType=Group }
+
+    { 26  ;2   ;Group     ;
+                GroupType=GridLayout;
+                Layout=Rows }
+
+    { 36  ;3   ;Group     ;
+                GroupType=Group }
+
+    { 35  ;4   ;Field     ;
+                CaptionML=ENU=Current Repo;
+                SourceExpr=lbl_Me;
+                TableRelation=SourceControlMonitor WHERE (User_ID=FILTER(@%USER%));
+                Editable=false;
+                Style=StrongAccent;
+                StyleExpr=TRUE;
+                ShowCaption=No }
+
+    { 34  ;4   ;Field     ;
+                CaptionML=ENU=From;
+                SourceExpr=lbl_Other;
+                TableRelation=SourceControlMonitor WHERE (User_ID=FILTER(<>@%USER%));
+                Editable=false;
+                Style=Ambiguous;
+                StyleExpr=TRUE;
+                OnValidate=BEGIN
+                             IF ToDate = 0D THEN
+                               ToDate := FromDate;
+                             IF (FromDate <> 0D) AND (ToDate <> 0D) THEN
+                               SETRANGE(Date,FromDate,ToDate);
+                             CurrPage.UPDATE;
+                           END;
+
+                ShowCaption=No }
+
+    { 33  ;4   ;Field     ;
+                CaptionML=ENU=To;
+                SourceExpr=lbl_More;
+                TableRelation=SourceControlMonitor;
+                Editable=false;
+                Style=Unfavorable;
+                StyleExpr=TRUE;
+                OnValidate=BEGIN
+                             IF (FromDate = 0D) OR (FromDate > ToDate) THEN
+                               FromDate := ToDate;
+                             IF (FromDate <> 0D) AND (ToDate <> 0D) THEN
+                               SETRANGE(Date,FromDate,ToDate);
+                             CurrPage.UPDATE;
+                           END;
+
+                ShowCaption=No }
+
+    { 31  ;3   ;Group     ;
+                GroupType=Group }
+
+    { 1101770065;4;Field  ;
+                AssistEdit=Yes;
+                CaptionML=ENU=Current Repo;
+                SourceExpr=SCCurrentRepo.Name;
+                TableRelation=SourceControlSetup.Name WHERE (Type=CONST(Repo));
+                Importance=Promoted;
+                OnAssistEdit=BEGIN
+                               HYPERLINK(SCCurrentRepo."Local Repo Path");
+                             END;
+                              }
+
+    { 18  ;4   ;Field     ;
+                CaptionML=ENU=From;
+                SourceExpr=FromDate;
+                OnValidate=BEGIN
+                             IF ToDate = 0D THEN
+                               ToDate := FromDate;
+                             IF (FromDate <> 0D) AND (ToDate <> 0D) THEN
+                               SETRANGE(Date,FromDate,ToDate);
+                             CurrPage.UPDATE;
+                           END;
+                            }
+
+    { 27  ;4   ;Field     ;
+                CaptionML=ENU=To;
+                SourceExpr=ToDate;
+                OnValidate=BEGIN
+                             IF (FromDate = 0D) OR (FromDate > ToDate) THEN
+                               FromDate := ToDate;
+                             IF (FromDate <> 0D) AND (ToDate <> 0D) THEN
+                               SETRANGE(Date,FromDate,ToDate);
+                             CurrPage.UPDATE;
+                           END;
+                            }
+
+    { 1101770015;1;Group  ;
+                GroupType=Repeater }
+
+    { 38  ;2   ;Field     ;
+                CaptionML=ENU=Change By;
+                SourceExpr=ChangedBy;
+                Editable=false;
+                StyleExpr=txtStyle }
+
+    { 1101770014;2;Field  ;
+                SourceExpr=Type;
+                Editable=FALSE;
+                StyleExpr=txtStyle }
+
+    { 1101770013;2;Field  ;
+                SourceExpr=ID;
+                Editable=FALSE;
+                StyleExpr=txtStyle }
+
+    { 1101770012;2;Field  ;
+                SourceExpr=Name;
+                Editable=FALSE;
+                StyleExpr=txtStyle }
+
+    { 1101770011;2;Field  ;
+                SourceExpr=Caption;
+                Visible=FALSE;
+                Editable=FALSE;
+                StyleExpr=txtStyle }
+
+    { 1101770010;2;Field  ;
+                SourceExpr="Company Name";
+                Visible=FALSE;
+                Editable=FALSE;
+                StyleExpr=txtStyle }
+
+    { 1101770009;2;Field  ;
+                SourceExpr=Modified;
+                Editable=TRUE;
+                StyleExpr=txtStyle }
+
+    { 1101770008;2;Field  ;
+                SourceExpr="Version List";
+                Editable=FALSE;
+                StyleExpr=txtStyle }
+
+    { 1101770007;2;Field  ;
+                SourceExpr=Date;
+                Editable=FALSE;
+                StyleExpr=txtStyle }
+
+    { 1101770006;2;Field  ;
+                SourceExpr=Time;
+                Editable=FALSE;
+                StyleExpr=txtStyle }
+
+    { 1101770005;2;Field  ;
+                SourceExpr=Compiled;
+                Editable=FALSE;
+                StyleExpr=txtStyle }
+
+    { 1101770004;2;Field  ;
+                SourceExpr=Locked;
+                StyleExpr=txtStyle }
+
+    { 1101770003;2;Field  ;
+                SourceExpr="Locked By";
+                Editable=FALSE;
+                StyleExpr=txtStyle }
+
+    { 1101770002;2;Field  ;
+                SourceExpr="BLOB Size";
+                Visible=FALSE;
+                Editable=FALSE;
+                StyleExpr=txtStyle }
+
+    { 1101770001;2;Field  ;
+                SourceExpr="BLOB Reference";
+                Visible=FALSE;
+                Editable=FALSE;
+                StyleExpr=txtStyle }
+
+    { 1101770000;2;Field  ;
+                SourceExpr="DBM Table No.";
+                Visible=FALSE;
+                Editable=FALSE;
+                StyleExpr=txtStyle }
+
+  }
+  CODE
+  {
+    VAR
+      MyObject@1004 : Record 2000000001;
+      ThreeTierMgt@1002 : Codeunit 419;
+      SCSetup@1003 : Record 77777;
+      SCCurrentRepo@1019 : Record 77777;
+      SCCompareRepo@1017 : Record 77777;
+      SCMonitor@1026 : Record 77778;
+      TextEditor@1101770020 : Text;
+      ComparePath@1016 : Text;
+      FileName1@1101770008 : Text[1024];
+      FileName2@1101770009 : Text[1024];
+      Text001@1101770022 : TextConst 'ENU=Processing object #1##### #2######## #3###################\\';
+      FromDate@1001 : Date;
+      ToDate@1000 : Date;
+      Window@1005 : Dialog;
+      PSRunner@1010 : DotNet "'Microsoft.Dynamics.Nav.PowerShellRunner, Version=9.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Dynamics.Nav.PowerShellRunner" RUNONCLIENT;
+      PSObject@1011 : DotNet "'Microsoft.Dynamics.Nav.PowerShellRunner, Version=9.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'.Microsoft.Dynamics.Nav.PSObjectAdapter" RUNONCLIENT;
+      txt_ExportAll@1006 : TextConst 'ENU=Exporting All Objects';
+      txt_split@1007 : TextConst 'ENU=Splitting Objects';
+      txt_BranchUp@1008 : TextConst 'ENU=Branch Updated';
+      txt_complete@1009 : TextConst 'ENU=Opperation Complete';
+      txt_createRepo@1020 : TextConst 'ENU=Creating Repo for #1#########';
+      window_message@1012 : TextConst 'ENU=#1##################################';
+      txt_WarnSync@1013 : TextConst 'ENU=WARNING!\This Action will (First) Reset Your Branch to Upstream Head before performing any other actions.\You will lose ALL Un-Committed Changes!!!!!! \Make Sure you have all required Changes Committed before Performing this Action.\Are you Sure you want to Continue?';
+      txt_Abort@1014 : TextConst 'ENU=Action aborted by User!';
+      txt_Push@1015 : TextConst 'ENU=Your Commits Will Now be Pushed Upstream.';
+      err001@1018 : TextConst 'ENU=No %1 found. Please make sure your setup is correct';
+      txtStyle@1021 : Text;
+      err002@1027 : TextConst 'ENU=No File " %1 " found. Something went wrong. Check Event Viewer';
+      lbl_Me@1022 : TextConst 'ENU=Changed By Me';
+      lbl_Other@1023 : TextConst 'ENU=Changed by Another';
+      lbl_More@1024 : TextConst 'ENU=Changed by More than One';
+      ChangedBy@1025 : Code[50];
+
+    PROCEDURE Type2Prefix@1210130004(Type@1210130000 : 'TableData,Table,Form,Report,Dataport,Codeunit,XMLport,Menusuite,Page,Query') : Code[3];
+    VAR
+      prefix@1210130001 : Code[3];
+    BEGIN
+      CASE Type OF
+        Type::Table:
+          prefix := 'TAB';
+        Type::Form:
+          prefix := 'FOR';
+        Type::Report:
+          prefix := 'REP';
+        Type::Dataport:
+          prefix := 'DAT';
+        Type::Codeunit:
+          prefix := 'COD';
+        Type::XMLport:
+          prefix := 'XML';
+        Type::Menusuite:
+          prefix := 'MEN';
+        Type::Page:
+          prefix := 'PAG';
+        Type::Query:
+          prefix := 'QUE';
+
+        ELSE
+          prefix := 'ERR';
+      END;
+
+      EXIT(prefix)
+    END;
+
+    PROCEDURE Prefix2Type@18(Type@1210130000 : Text[3]) : Integer;
+    VAR
+      lObjectType@1210130001 : Integer;
+    BEGIN
+      CASE Type OF
+        'TAB':
+          lObjectType := 1;
+        'FOR':
+          lObjectType := 2;
+        'REP':
+          lObjectType := 3;
+        'DAT':
+          lObjectType := 4;
+        'COD':
+          lObjectType := 5;
+        'XML':
+          lObjectType := 6;
+        'MEN':
+          lObjectType := 7;
+        'PAG':
+          lObjectType := 8;
+        'QUE':
+          lObjectType := 9;
+
+        ELSE
+          lObjectType := -1;
+      END;
+
+      EXIT(lObjectType);
+    END;
+
+    PROCEDURE GetFile1@1101770001(VAR pRepo@1001 : Record 77777;VAR pObj@1000 : Record 2000000001;pIsTemp@1002 : Boolean);
+    BEGIN
+      FileName1 := COPYSTR(STRSUBSTNO('%1%2.TXT', Type2Prefix(pObj.Type), pObj.ID), 1, MAXSTRLEN(FileName1));
+      IF NOT pIsTemp THEN
+        FileName1 := pRepo."Local Repo Path" + FileName1
+      ELSE
+        FileName1 := GetPathTEMP + FileName1;
+    END;
+
+    PROCEDURE GetFile2@15(VAR pRepo@1001 : Record 77777;VAR pObj@1000 : Record 2000000001;pIsTemp@1002 : Boolean);
+    BEGIN
+      FileName2 := COPYSTR(STRSUBSTNO('%1%2.TXT', Type2Prefix(pObj.Type), pObj.ID), 1, MAXSTRLEN(FileName2));
+      IF NOT pIsTemp THEN
+        FileName2 := pRepo."Local Repo Path" + FileName2
+      ELSE
+        FileName2 := GetPathTEMP + FileName2;
+    END;
+
+    PROCEDURE GetFileOnly@5(VAR pObj@1000 : Record 2000000001) : Text;
+    VAR
+      lFileOnly@1001 : Text;
+    BEGIN
+      lFileOnly := COPYSTR(STRSUBSTNO('%1%2.TXT', Type2Prefix(pObj.Type), pObj.ID), 1, MAXSTRLEN(lFileOnly));
+      EXIT(lFileOnly);
+    END;
+
+    PROCEDURE GetPathTEMP@4() : Text;
+    VAR
+      lPath@1000 : Text;
+    BEGIN
+      lPath := ThreeTierMgt.GetDirectoryName(ThreeTierMgt.ClientTempFileName(''));
+      lPath := COPYSTR(lPath,1,STRLEN(lPath));
+      EXIT(lPath + '\');
+    END;
+
+    PROCEDURE ExportToRepo@1101770002(pIsTemp@1101770000 : Boolean);
+    VAR
+      TempFile@1101770002 : Text[1024];
+    BEGIN
+      //////////////////////////////////////////////////////
+      // If pIsTemp is TRUE - export to temp Location
+      // If False - Use Current Repo Local Path
+      /////////////////////////////////////////////////////
+      MyObject.RESET;
+      CurrPage.SETSELECTIONFILTER(MyObject);
+
+      IF MyObject.FINDSET THEN
+      BEGIN
+        Window.OPEN(Text001);
+        REPEAT
+          GetFile1(SCCurrentRepo,MyObject,pIsTemp);
+          Window.UPDATE(1, FORMAT(MyObject.Type));
+          Window.UPDATE(2, FORMAT(MyObject.ID));
+          Window.UPDATE(3, MyObject.Name);
+          //Export-NAVApplicationObject MyApp COD1-10.txt -Filter 'Type=Codeunit;Id=1..10'
+          DoExport('Type=' + FORMAT(MyObject.Type) + ';Id='+FORMAT(MyObject.ID));
+        UNTIL MyObject.NEXT = 0;
+        Window.CLOSE;
+      END;
+    END;
+
+    PROCEDURE ExportAllToRepo@3(pIsTemp@1101770000 : Boolean);
+    VAR
+      TempFile@1101770002 : Text[1024];
+      LocalCounter@1000 : Integer;
+    BEGIN
+      //////////////////////////////////////////////////////
+      // If pIsTemp is TRUE - export to temp Location
+      // If False - Use Current Repo Local Path
+      /////////////////////////////////////////////////////
+
+      Window.OPEN(window_message);
+      Window.UPDATE(1,txt_ExportAll);
+      FileName1 := GetPathTEMP + 'All.TXT';
+      PSRunner.AddCommand('Export-NAVApplicationObject');
+      PSRunner.AddParameter('DatabaseName',SCCurrentRepo."DB Name");
+      PSRunner.AddParameter('DatabaseServer',SCCurrentRepo."DB Server");
+      PSRunner.AddParameter('Path',FileName1);
+      PSRunner.AddParameter('Force',TRUE);
+      PSRunner.AddParameter('Verbose',TRUE);
+      PSRunner.WriteEventOnError(TRUE);
+      LocalCounter := 0;
+      PSRunner.BeginInvoke;
+      REPEAT
+        LocalCounter := LocalCounter + 1;
+        CASE LocalCounter OF
+          1: Window.UPDATE(1,txt_ExportAll + ' -         ');
+          2: Window.UPDATE(1,txt_ExportAll + ' --        ');
+          3: Window.UPDATE(1,txt_ExportAll + ' ---       ');
+          4: Window.UPDATE(1,txt_ExportAll + ' --->      ');
+          5: Window.UPDATE(1,txt_ExportAll + '  --> #    ');
+          6: Window.UPDATE(1,txt_ExportAll + '   -> ##   ');
+          7: Window.UPDATE(1,txt_ExportAll + '    > ###  ');
+          8: Window.UPDATE(1,txt_ExportAll + '      #### ');
+        END; //end Case
+        IF LocalCounter = 8 THEN
+          LocalCounter := 0;
+        SLEEP(1000);
+      UNTIL PSRunner.IsCompleted;
+
+      Window.UPDATE(1,txt_split);
+      PSRunner.AddCommand('Split-NAVApplicationObjectFile');
+      PSRunner.AddParameter('Source',FileName1);
+      PSRunner.AddParameter('Destination',SCCurrentRepo."Local Repo Path");
+      PSRunner.AddParameter('PreserveFormatting',TRUE);
+      PSRunner.AddParameter('Force',TRUE);
+      PSRunner.AddParameter('Verbose',TRUE);
+      PSRunner.WriteEventOnError(TRUE);
+      LocalCounter := 0;
+      PSRunner.BeginInvoke;
+      REPEAT
+        LocalCounter := LocalCounter + 1;
+        CASE LocalCounter OF
+          1: Window.UPDATE(1,txt_split + ' ####      ');
+          2: Window.UPDATE(1,txt_split + ' # ###     ');
+          3: Window.UPDATE(1,txt_split + ' # # ##    ');
+          4: Window.UPDATE(1,txt_split + ' # # # #   ');
+          5: Window.UPDATE(1,txt_split + '   # # # # ');
+          6: Window.UPDATE(1,txt_split + ' #   # # # ');
+          7: Window.UPDATE(1,txt_split + ' ##    # # ');
+          8: Window.UPDATE(1,txt_split + ' ###     # ');
+        END; //end Case
+        IF LocalCounter = 8 THEN
+          LocalCounter := 0;
+        SLEEP(1000);
+      UNTIL PSRunner.IsCompleted;
+      Window.CLOSE;
+    END;
+
+    PROCEDURE ImportFromRepo@1101770003();
+    BEGIN
+      CurrPage.SETSELECTIONFILTER(MyObject);
+
+      IF MyObject.FINDSET THEN
+      BEGIN
+        Window.OPEN(Text001);
+        REPEAT
+          GetFile1(SCCurrentRepo,MyObject,FALSE);
+          Window.UPDATE(1, MyObject.Type);
+          Window.UPDATE(2, FORMAT(MyObject.ID));
+          Window.UPDATE(3, MyObject.Name);
+          PSRunner.AddCommand('Import-NAVApplicationObject');
+          PSRunner.AddParameter('DatabaseName',SCCurrentRepo."DB Name");
+          PSRunner.AddParameter('DatabaseServer',SCCurrentRepo."DB Server");
+          PSRunner.AddParameter('Path',FileName1);
+          //PSRunner.AddParameter('Force',TRUE);
+          PSRunner.AddParameter('Verbose',TRUE);
+          PSRunner.WriteEventOnError(TRUE);
+          PSRunner.BeginInvoke;
+          REPEAT
+            SLEEP(1000);
+          UNTIL PSRunner.IsCompleted;
+          //IMPORTOBJECTS(FileName1, 0);
+        UNTIL MyObject.NEXT = 0;
+        Window.CLOSE;
+      END;
+    END;
+
+    LOCAL PROCEDURE SelectCompareRepo@1(pFilterOutCurrent@1001 : Boolean);
+    VAR
+      SCSetupList@1000 : Page 77779;
+    BEGIN
+      SCCompareRepo.RESET;
+      SCCompareRepo.SETRANGE(User_ID,USERID);
+      SCCompareRepo.SETRANGE(Type,SCCompareRepo.Type::Repo);
+      IF pFilterOutCurrent THEN
+        SCCompareRepo.SETFILTER(Name,'<>%1',SCCurrentRepo.Name);
+      IF SCCompareRepo.FINDSET THEN
+        SCCompareRepo := SCCurrentRepo;
+
+      CLEAR(SCSetupList);
+      SCSetupList.SETTABLEVIEW(SCCompareRepo);
+      SCSetupList.SETRECORD(SCCompareRepo);
+      SCSetupList.LOOKUPMODE(TRUE);
+
+      IF SCSetupList.RUNMODAL = ACTION::LookupOK THEN
+        SCSetupList.GETRECORD(SCCompareRepo);
+    END;
+
+    PROCEDURE ReadSetup@1101770005();
+    VAR
+      MySetupFile@1101770000 : File;
+      BufferTxt@1101770002 : Text[250];
+      MyVar@1101770001 : Text[80];
+      MyPath@1101770003 : Text[100];
+    BEGIN
+      SCSetup.RESET;
+      SCSetup.SETRANGE(User_ID,USERID);
+
+      //Text Editor
+      SCSetup.SETRANGE(Type,SCSetup.Type::"Text Editor");
+      IF SCSetup.FINDFIRST THEN
+        TextEditor := SCSetup."Local Repo Path"
+      ELSE
+        ERROR(err001,FORMAT(SCSetup.Type::"Text Editor"));
+
+      //Compare tool
+      SCSetup.SETRANGE(Type,SCSetup.Type::"Compare Tool");
+      IF SCSetup.FINDFIRST THEN
+        ComparePath := SCSetup."Local Repo Path"
+      ELSE
+        ERROR(err001,FORMAT(SCSetup.Type::"Compare Tool"));
+
+      //Default Repo
+      SCSetup.SETRANGE(Type,SCSetup.Type::Repo);
+      SCSetup.SETRANGE(Default,TRUE);
+      IF NOT SCSetup.FINDFIRST THEN
+        SCSetup.SETRANGE(Default);
+      IF SCSetup.FINDFIRST THEN
+      BEGIN
+        SCCurrentRepo := SCSetup;
+        SCCurrentRepo.FIND;
+      END ELSE
+        ERROR(err001,FORMAT(SCSetup.Type::Repo));
+    END;
+
+    LOCAL PROCEDURE ResetHard@6() : Boolean;
+    VAR
+      lSyncFile@1000 : Text;
+      lTempPath@1001 : Text;
+    BEGIN
+      IF CONFIRM(txt_WarnSync,FALSE) THEN
+      BEGIN
+        lTempPath := GetPathTEMP;
+        PSRunner.AddCommand('Git-ResetHard');
+        PSRunner.AddParameter('Path',SCCurrentRepo."Local Repo Path");
+        PSRunner.AddParameter('Repo',SCCurrentRepo."Upstream Repo name");
+        PSRunner.AddParameter('Branch',SCCurrentRepo.Branch);
+        PSRunner.AddParameter('LogPath',lTempPath + 'SyncLog.log');
+        PSRunner.AddParameter('Editor',TextEditor);
+        //PSRunner.AddParameter('Hard','$true');
+        PSRunner.WriteEventOnError(TRUE);
+        PSRunner.BeginInvoke;
+        REPEAT
+          SLEEP(1000);
+        UNTIL PSRunner.IsCompleted;
+        EXIT(TRUE);
+      END;
+      EXIT(FALSE);
+    END;
+
+    LOCAL PROCEDURE DoExport@2(pFilter@1000 : Text);
+    BEGIN
+      PSRunner.AddCommand('Export-NAVApplicationObject');
+      PSRunner.AddParameter('DatabaseName',SCCurrentRepo."DB Name");
+      PSRunner.AddParameter('DatabaseServer',SCCurrentRepo."DB Server");
+      PSRunner.AddParameter('Path',FileName1);
+      IF pFilter <> '' THEN
+        PSRunner.AddParameter('Filter',pFilter);
+      PSRunner.AddParameter('Force',TRUE);
+      PSRunner.AddParameter('Verbose',TRUE);
+      PSRunner.WriteEventOnError(TRUE);
+      PSRunner.BeginInvoke;
+      REPEAT
+        SLEEP(1000);
+      UNTIL PSRunner.IsCompleted;
+    END;
+
+    LOCAL PROCEDURE FilterObjects@7(pObjectType@1000 : Integer);
+    BEGIN
+      FILTERGROUP(10);
+      IF (pObjectType = 0) OR (pObjectType = 1) THEN
+        SETRANGE("Company Name",'');
+      IF pObjectType = 0 THEN
+        SETFILTER(Type,'%1|%2|%3|%4|%5|%6|%7|%8',1,3,4,5,6,7,8,9)
+      ELSE
+        SETFILTER(Type,'%1',pObjectType);
+      FILTERGROUP(0);
+      CurrPage.UPDATE(FALSE);
+    END;
+
+    LOCAL PROCEDURE ViewFile@11(pViewDBFile@1000 : Boolean);
+    BEGIN
+      ///////////////////////////////////////
+      // pViewDBFile = FALSE  -> View the File in the Repo Directory
+      // pViewDBFile = TRUE   -> Export Object to Temp and View
+      //////////////////////////////////////
+
+      IF pViewDBFile THEN
+        ExportToRepo(TRUE); //temp location
+      GetFile1(SCCurrentRepo,Rec,pViewDBFile);
+      PSRunner.AddCommand('Git-ViewFile');
+      PSRunner.AddParameter('Path',FileName1);
+      PSRunner.AddParameter('Editor',TextEditor);
+      PSRunner.WriteEventOnError(TRUE);
+      PSRunner.BeginInvoke;
+      REPEAT
+        SLEEP(1000);
+      UNTIL PSRunner.IsCompleted;
+    END;
+
+    LOCAL PROCEDURE ViewHistory@14(pFileOnly@1000 : Boolean);
+    VAR
+      lTempPath@1001 : Text;
+      lLogFile@1002 : Text;
+    BEGIN
+      ///////////////////////////////////////
+      // pFileOnly = FALSE  -> View the History of the Repo
+      // pFileOnly = TRUE   -> View the History of selected File
+      //////////////////////////////////////
+
+      lTempPath := GetPathTEMP;
+      IF pFileOnly THEN
+        lLogFile := GetFileOnly(Rec) + '.log'
+      ELSE
+        lLogFile := 'RepoCommitLog.log';
+      PSRunner.AddCommand('Git-Log');
+      PSRunner.AddParameter('Path',SCCurrentRepo."Local Repo Path");
+      PSRunner.AddParameter('LogPath',lTempPath + lLogFile);
+      PSRunner.AddParameter('Editor',TextEditor);
+      IF pFileOnly THEN
+        PSRunner.AddParameter('File',lLogFile);
+      PSRunner.WriteEventOnError(TRUE);
+      PSRunner.BeginInvoke;
+      REPEAT
+        SLEEP(1000);
+      UNTIL PSRunner.IsCompleted;
+    END;
+
+    LOCAL PROCEDURE ViewStatus@17();
+    VAR
+      lTempPath@1000 : Text;
+      lLogFile@1002 : Text;
+    BEGIN
+      lTempPath := GetPathTEMP;
+      lLogFile := 'RepoStatusLog.log';
+      PSRunner.AddCommand('Git-Status');
+      PSRunner.AddParameter('Path',SCCurrentRepo."Local Repo Path");
+      PSRunner.AddParameter('LogPath',lTempPath + lLogFile);
+      PSRunner.AddParameter('Editor',TextEditor);
+      PSRunner.WriteEventOnError(TRUE);
+      PSRunner.BeginInvoke;
+      REPEAT
+        SLEEP(1000);
+      UNTIL PSRunner.IsCompleted;
+    END;
+
+    LOCAL PROCEDURE CompareFile@21(pCompareDBFile@1000 : Boolean);
+    BEGIN
+      ///////////////////////////////////////
+      // pCompareDBFile = FALSE  -> Compare the File in the Repo Directory
+      // pCompareDBFile = TRUE   -> Export Object to Temp and Compare
+      //////////////////////////////////////
+
+      SelectCompareRepo(NOT pCompareDBFile);
+      IF pCompareDBFile THEN
+        ExportToRepo(TRUE); //temp location
+
+      GetFile1(SCCurrentRepo,Rec,pCompareDBFile);
+      GetFile2(SCCompareRepo,Rec,FALSE);
+      PSRunner.AddCommand('Git-CompareFile');
+      PSRunner.AddParameter('Path1',FileName1);
+      PSRunner.AddParameter('Path2',FileName2);
+      PSRunner.AddParameter('Editor',ComparePath);
+      PSRunner.WriteEventOnError(TRUE);
+      PSRunner.BeginInvoke;
+      REPEAT
+        SLEEP(1000);
+      UNTIL PSRunner.IsCompleted;
+    END;
+
+    LOCAL PROCEDURE DoCommit@25();
+    VAR
+      lTempPath@1001 : Text;
+      lLogFile@1000 : Text;
+    BEGIN
+      PSRunner.AddCommand('Git-OpenGui');
+      PSRunner.AddParameter('Path',SCCurrentRepo."Local Repo Path");
+      PSRunner.WriteEventOnError(TRUE);
+      PSRunner.BeginInvoke;
+      REPEAT
+        SLEEP(1000);
+      UNTIL PSRunner.IsCompleted;
+
+      lTempPath := GetPathTEMP;
+      lLogFile := 'RepoDiffLog.log';
+      PSRunner.AddCommand('Git-Diff');
+      PSRunner.AddParameter('Path',SCCurrentRepo."Local Repo Path");
+      PSRunner.AddParameter('Repo',SCCurrentRepo."Upstream Repo name");
+      PSRunner.AddParameter('Branch',SCCurrentRepo.Branch);
+      PSRunner.AddParameter('LogPath',lTempPath + lLogFile);
+      PSRunner.AddParameter('Editor',TextEditor);
+      PSRunner.WriteEventOnError(TRUE);
+      PSRunner.BeginInvoke;
+      REPEAT
+        SLEEP(1000);
+      UNTIL PSRunner.IsCompleted;
+
+      HandleLastCommitFromFile(lTempPath + lLogFile);
+
+      DoPush;
+    END;
+
+    LOCAL PROCEDURE DoPush@26();
+    VAR
+      lTempPath@1001 : Text;
+      lLogFile@1000 : Text;
+    BEGIN
+      IF CONFIRM(txt_Push,TRUE) THEN
+      BEGIN
+        lTempPath := GetPathTEMP;
+        lLogFile := 'RepoPushLog.log';
+        PSRunner.AddCommand('Git-PushUp');
+        PSRunner.AddParameter('Path',SCCurrentRepo."Local Repo Path");
+        PSRunner.AddParameter('Repo',SCCurrentRepo."Upstream Repo name");
+        PSRunner.AddParameter('Branch',SCCurrentRepo.Branch);
+        PSRunner.AddParameter('LogPath',lTempPath + lLogFile);
+        PSRunner.AddParameter('Editor',TextEditor);
+        PSRunner.WriteEventOnError(TRUE);
+        PSRunner.BeginInvoke;
+        REPEAT
+          SLEEP(1000);
+        UNTIL PSRunner.IsCompleted;
+      END ELSE
+        ERROR(txt_Abort);
+    END;
+
+    LOCAL PROCEDURE SetupRepos@28();
+    BEGIN
+      SCSetup.RESET;
+      SCSetup.SETRANGE(User_ID,USERID);
+      SCSetup.SETRANGE(Type,SCSetup.Type::Repo);
+      Window.OPEN(txt_createRepo);
+      IF SCSetup.FINDSET THEN
+        REPEAT
+          Window.UPDATE(1,FORMAT(SCSetup.Name));
+          IF NOT EXISTS(SCSetup."Local Repo Path") THEN
+          BEGIN
+            PSRunner.AddCommand('Git-Clone');
+            PSRunner.AddParameter('LocalParentPath',SCSetup."Local Project Path");
+            PSRunner.AddParameter('HttpPath',SCSetup."Remote Repo Path");
+            PSRunner.WriteEventOnError(TRUE);
+            PSRunner.BeginInvoke;
+            REPEAT
+              SLEEP(1000);
+            UNTIL PSRunner.IsCompleted;
+          END;
+        UNTIL SCSetup.NEXT = 0;
+
+      Window.CLOSE;
+    END;
+
+    LOCAL PROCEDURE OpenPsRunspace@1100084002();
+    BEGIN
+      SCSetup.RESET;
+      SCSetup.SETRANGE(User_ID,USERID);
+      SCSetup.SETRANGE(Type,SCSetup.Type::"PS Module");
+      IF NOT SCSetup.FINDSET THEN
+        ERROR(err001,SCSetup.Type::"PS Module");
+
+      PSRunner := PSRunner.CreateInSandbox;
+      PSRunner.WriteEventOnError := TRUE;
+      REPEAT
+        PSRunner.ImportModule(SCSetup."Local Repo Path");
+      UNTIL SCSetup.NEXT = 0;
+
+      //PSRunner.ImportModule('C:\Program Files\Microsoft Dynamics NAV\90\Service\NavAdminTool.ps1');
+      //PSRunner.ImportModule('C:\Program Files (x86)\Microsoft Dynamics NAV\90\RoleTailored Client\Microsoft.Dynamics.Nav.Model.Tools.psd1');
+      //PSRunner.ImportModule('C:\PSScripts\GitCmdLet.psm1');
+    END;
+
+    LOCAL PROCEDURE ClosePsRunspace@1100084003();
+    BEGIN
+    END;
+
+    LOCAL PROCEDURE ColorChange@8();
+    VAR
+      lfound@1001 : Integer;
+    BEGIN
+      WITH SCMonitor DO
+      BEGIN
+        RESET;
+        SETRANGE(ObjectType,Rec.Type);
+        SETRANGE(ObjectID,Rec.ID);
+        IF NOT FINDLAST THEN BEGIN
+          ChangedBy := '';
+          txtStyle := 'Standard'
+        END ELSE BEGIN
+          lfound := 0;
+
+          SETFILTER(User_ID,'%1','@'+USERID);
+          IF FINDLAST THEN BEGIN
+            txtStyle := 'StrongAccent';
+            lfound := lfound + 1;
+            ChangedBy := USERID;
+          END;
+
+          SETRANGE(User_ID);
+          SETFILTER(User_ID,'<>%1','@'+USERID);
+          IF FINDLAST THEN
+          BEGIN
+            txtStyle := 'Ambiguous';
+            lfound := lfound + 1;
+            ChangedBy := User_ID;
+          END;
+
+          IF lfound > 1 THEN BEGIN
+            txtStyle := 'Unfavorable';
+            ChangedBy := '***MANY***';
+          END;
+        END;
+      END;
+    END;
+
+    PROCEDURE HandleLastCommitFromFile@9(pLogFile@1006 : Text);
+    VAR
+      ClientFile@1001 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.IO.File" RUNONCLIENT;
+      ClientFileLines@1000 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Generic.IEnumerable`1";
+      line@1002 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Generic.IEnumerator`1";
+      BufferFile@1003 : Text[250];
+      BufferType@1004 : Text[3];
+      BufferID@1005 : Integer;
+    BEGIN
+      IF NOT ClientFile.Exists(pLogFile) THEN
+        ERROR(err002,pLogFile);
+
+      ClientFileLines := ClientFile.ReadAllLines(pLogFile);
+
+      line := ClientFileLines.GetEnumerator;
+      WHILE line.MoveNext DO
+      BEGIN
+        BufferFile := FORMAT(line.Current);
+        BufferType := COPYSTR(BufferFile,1,3);
+        EVALUATE(BufferID,COPYSTR(BufferFile,4,STRPOS(BufferFile,'.') - 4));
+
+        SCMonitor.RESET;
+        SCMonitor.SETRANGE(ObjectType,Prefix2Type(BufferType));
+        SCMonitor.SETRANGE(ObjectID,BufferID);
+        IF SCMonitor.FINDSET THEN
+          SCMonitor.DELETEALL;
+
+      END;
+    END;
+
+    BEGIN
+    {
+      Created For Source Control - GIT
+    }
+    END.
+  }
+}
+
+OBJECT Page 77778 Source Control Monitor Lines
+{
+  OBJECT-PROPERTIES
+  {
+    Date=28/02/19;
+    Time=12:38:59 PM;
+    Modified=Yes;
+    Version List=;
+  }
+  PROPERTIES
+  {
+    InsertAllowed=No;
+    DeleteAllowed=No;
+    SourceTable=Table77778;
+    DataCaptionExpr=gCaption;
+    DataCaptionFields=ObjectID,ObjectName;
+    PageType=Worksheet;
+    PromotedActionCategoriesML=ENU=New,Process,Reports,View,Compare,Get,Export / Import;
+    OnOpenPage=BEGIN
+                 RESET;
+                 FILTERGROUP(10);
+                 SETFILTER(ObjectType,'%1|%2|%3|%4|%5|%6|%7|%8',1,3,4,5,6,7,8,9);
+                 FILTERGROUP(0);
+                 IF FINDFIRST THEN;
+
+                 ReadINI;
+
+                 DatabaseServer := 'its-upg-01';
+                 DatabaseName := '2016-DEV';
+                 Collection := ' /collection:"http://its-dev-02:80/tfs/Navision"';
+
+                 CommandText := 'command=exportobjects, file="%1", servername="%2", database="%3", '+
+                                'filter="Type=%4;ID=%5", ntauthentication=yes, logfile=C:\temp\QueryExportLog.txt';
+
+                 //Selection := STRMENU(Text00001 + Text00002 + Text00003 + Text00004 + Text00014 + Text00005 + Text00006
+                 //                     + Text00007 + Text00008 + Text00009 + Text00010 + Text00011
+                 //                     + Text00012,0,'Please Select Current Branch...');
+
+                 Selection := 5;
+
+                 IF Selection = 0 THEN
+                  ERROR('');
+
+                 CLEAR(WSShell);
+                 CREATE(WSShell,TRUE,TRUE);
+
+                 CurrentBranch := Selection - 1;
+               END;
+
+    OnAfterGetRecord=BEGIN
+                       gCaption := ChangeType + ' ' + FORMAT(ObjectType) + ' ' + FORMAT(ObjectID) + ': ' + ObjectName + ' (' + FORMAT(Changed) + ')';
+                     END;
+
+    OnDeleteRecord=VAR
+                     DeleteFile@1101770000 : File;
+                   BEGIN
+                     ThisObject.GET(ObjectType,'',ObjectID);
+                     GetFile1(TRUE,ThisObject);
+                     //SHELL(TFPath,' get ',FileName1);
+                     //WSShell.Run(TFPath + ' get ' + FileName1);
+                     startCmd.Start(TFPath + ' get ' + FileName1);
+                     GetFile1(FALSE,ThisObject);
+                     IF DeleteFile.OPEN(FileName1) THEN
+                     BEGIN
+                       DeleteFile.CLOSE;
+                       GetFile1(TRUE,ThisObject);
+                       //SHELL(TFPath,' delete ',FileName1);
+                       //WSShell.Run(TFPath + ' delete ' + FileName1);
+                       startCmd.Start(TFPath + ' delete ' + FileName1);
+                     END;
+                   END;
+
+    ActionList=ACTIONS
+    {
+      { 1900000003;0 ;ActionContainer;
+                      ActionContainerType=RelatedInformation }
+      { 24      ;1   ;ActionGroup;
+                      CaptionML=ENU=Objects }
+      { 23      ;2   ;Action    ;
+                      Name=AllObject;
+                      CaptionML=ENU=&All;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=AllLines;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 FILTERGROUP(10);
+                                 SETRANGE(CompanyName,'');
+                                 SETFILTER(ObjectType,'%1|%2|%3|%4|%5|%6|%7|%8',1,3,4,5,6,7,8,9);
+                                 //SETRANGE(Type);
+                                 FILTERGROUP(0);
+                                 CurrPage.UPDATE(FALSE);
+                               END;
+                                }
+      { 1       ;2   ;Action    ;
+                      Name=Table;
+                      CaptionML=ENU=Ta&ble;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Table;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 FILTERGROUP(10);
+                                 SETRANGE(CompanyName,'');
+                                 SETFILTER(ObjectType,'%1',1);
+                                 FILTERGROUP(0);
+                                 CurrPage.UPDATE(FALSE);
+                               END;
+                                }
+      { 22      ;2   ;Action    ;
+                      Name=Page;
+                      CaptionML=ENU=Pa&ge;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=TaskPage;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 FILTERGROUP(10);
+                                 SETFILTER(ObjectType,'%1',8);
+                                 FILTERGROUP(0);
+                                 CurrPage.UPDATE(FALSE);
+                               END;
+                                }
+      { 17      ;2   ;Action    ;
+                      Name=Report;
+                      CaptionML=ENU=Re&port;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Report;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 FILTERGROUP(10);
+                                 SETFILTER(ObjectType,'%1',3);
+                                 FILTERGROUP(0);
+                                 CurrPage.UPDATE(FALSE);
+                               END;
+                                }
+      { 20      ;2   ;Action    ;
+                      Name=Codeunit;
+                      CaptionML=ENU=&Codeunit;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=DesignCodeBehind;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 FILTERGROUP(10);
+                                 SETFILTER(ObjectType,'%1',5);
+                                 FILTERGROUP(0);
+                                 CurrPage.UPDATE(FALSE);
+                               END;
+                                }
+      { 19      ;2   ;Action    ;
+                      Name=XMLPort;
+                      CaptionML=ENU=&XMLport;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=XMLFile;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 FILTERGROUP(10);
+                                 SETFILTER(ObjectType,'%1',6);
+                                 FILTERGROUP(0);
+                                 CurrPage.UPDATE(FALSE);
+                               END;
+                                }
+      { 16      ;2   ;Action    ;
+                      Name=Query;
+                      CaptionML=ENU=&Query;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Questionnaire;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 FILTERGROUP(10);
+                                 SETFILTER(ObjectType,'%1',9);
+                                 FILTERGROUP(0);
+                                 CurrPage.UPDATE(FALSE);
+                               END;
+                                }
+      { 21      ;2   ;Action    ;
+                      Name=MenuSuite;
+                      CaptionML=ENU=Menu&Suite;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=ExpandAll;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 FILTERGROUP(10);
+                                 SETFILTER(ObjectType,'%1',7);
+                                 FILTERGROUP(0);
+                                 CurrPage.UPDATE(FALSE);
+                               END;
+                                }
+      { 35      ;1   ;ActionGroup;
+                      CaptionML=ENU=Filter }
+      { 34      ;2   ;Action    ;
+                      Name=All;
+                      CaptionML=ENU=&All;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Users;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 // FILTERGROUP(10);
+                                 SETRANGE(User_ID);
+                                 // FILTERGROUP(0);
+                                 CurrPage.UPDATE(FALSE);
+                               END;
+                                }
+      { 33      ;2   ;Action    ;
+                      Name=Mine;
+                      CaptionML=ENU=M&ine;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=User;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 // FILTERGROUP(10);
+                                 // IF STRPOS(USERID,'\') = 0 THEN
+                                 //   SelectedRec.SETFILTER(User_ID,'%1','@*' + USERID + '*')
+                                 // ELSE
+                                   SETFILTER(User_ID,DELCHR(USERID,'<>',Quote));
+                                 // FILTERGROUP(0);
+                                 CurrPage.UPDATE(FALSE);
+                               END;
+                                }
+      { 36      ;2   ;Action    ;
+                      Name=Selected;
+                      CaptionML=ENU=Selected;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=CoupledUser;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 // FILTERGROUP(10);
+                                 SETFILTER(User_ID,User_ID);
+                                 // FILTERGROUP(0);
+                                 IF FINDFIRST THEN;
+                                 CurrPage.UPDATE(FALSE);
+                               END;
+                                }
+      { 1900000004;0 ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 15      ;1   ;ActionGroup;
+                      CaptionML=ENU=Vie&w }
+      { 14      ;2   ;Action    ;
+                      Name=AcViewCurr;
+                      CaptionML=ENU=C&urrent File;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=XMLFile;
+                      PromotedCategory=Category4;
+                      OnAction=BEGIN
+                                 ExportToBranch(FALSE);
+                                 ThisObject.GET(ObjectType,'',ObjectID);
+                                 GetFileTEMP(ThisObject);
+                                 //SHELL(TextEditor,FileName1);
+                                 //WSShell.Run(TextEditor + ' ' + FileName1);
+                                  startCmd.Start(TextEditor,' "' + FileName1 + '"');
+                               END;
+                                }
+      { 13      ;2   ;Action    ;
+                      Name=AcViewBranch;
+                      CaptionML=ENU=B&ranch File;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=XMLFileGroup;
+                      PromotedCategory=Category4;
+                      OnAction=BEGIN
+                                 ThisObject.GET(ObjectType,'',ObjectID);
+                                 GetFile1(FALSE,ThisObject);
+                                 //SHELL(TFPath,' view ',FileName1);
+                                 //SHELL(TextEditor,FileName1);
+                                 //WSShell.Run(TextEditor + ' ' + FileName1);
+                                  startCmd.Start(TextEditor,' "' + FileName1 + '"');
+                               END;
+                                }
+      { 12      ;2   ;Action    ;
+                      Name=AcViewHistory;
+                      CaptionML=ENU=&History;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=History;
+                      PromotedCategory=Category4;
+                      OnAction=BEGIN
+                                 ThisObject.GET(ObjectType,'',ObjectID);
+                                 GetFile1(TRUE,ThisObject);
+                                 //SHELL(TFPath,' history ',FileName1);
+                                 //WSShell.Run(TFPath + ' history ' + FileName1);
+                                 startCmd.Start(TFPath,' history ' + '"' + FileName1  + '"' + Collection);
+                               END;
+                                }
+      { 11      ;1   ;ActionGroup;
+                      CaptionML=ENU=Compa&re }
+      { 10      ;2   ;Action    ;
+                      Name=AcCompCurr;
+                      CaptionML=ENU=C&urrent File to...;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=CompareContacts;
+                      PromotedCategory=Category5;
+                      OnAction=BEGIN
+                                 ExportToBranch(FALSE);
+                                 ThisObject.GET(ObjectType,'',ObjectID);
+                                 GetFileTEMP(ThisObject);
+                                 GetFile2(FALSE,ThisObject);
+                                 //SHELL(ComparePath,FileName1,FileName2);
+                                 //WSShell.Run(ComparePath + ' ' + FileName1 + ' ' + FileName2);
+                                 startCmd.Start(ComparePath,' "' + FileName1 + '" "' + FileName2 + '"');
+                               END;
+                                }
+      { 9       ;2   ;Action    ;
+                      Name=AcCompBranch;
+                      CaptionML=ENU=B&ranch File to...;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=CompareCOA;
+                      PromotedCategory=Category5;
+                      OnAction=BEGIN
+                                 ThisObject.GET(ObjectType,'',ObjectID);
+                                 {
+                                 GetFile1(TRUE,ThisObject);
+                                 GetFile2(TRUE,ThisObject);
+                                 startCmd.Start(TFPath,' vc diff ' + '"' + FileName1  + '" "' + FileName2  + '"' + Collection);
+                                 }
+
+                                 GetFile1(FALSE,ThisObject);
+                                 GetFile2(FALSE,ThisObject);
+                                 startCmd.Start(ComparePath,' "' + FileName1 + '" "' + FileName2 + '"');
+                               END;
+                                }
+      { 8       ;1   ;ActionGroup;
+                      CaptionML=ENU=&Get }
+      { 7       ;2   ;Action    ;
+                      Name=AcGetLatestFile;
+                      CaptionML=ENU=&Get Latest Version to Branch;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=UpdateXML;
+                      PromotedCategory=Category6;
+                      OnAction=BEGIN
+                                 ThisObject.GET(ObjectType,'',ObjectID);
+                                 GetFile1(FALSE,ThisObject);
+                                 //SHELL(TFPath,' get ',FileName1);
+                                 //WSShell.Run(TFPath + ' get ' + FileName1);
+                                 ////GetLatestVersion;
+                                 startCmd.Start(TFPath,' get '  + '"' + FileName1  + '"');// + Collection);
+                                 //startCmd.Start(LocalWorkBranch,'tf get '  + FileName1);
+                                 //MESSAGE(LocalWorkBranch + 'tf get ' + '"' + FileName1  + '"');
+                                 {
+                                 Process := Process.Process;
+                                 Process.StartInfo.RedirectStandardError := TRUE;      // In Case of Error the Error Should be Redirected.
+                                 Process.StartInfo.RedirectStandardOutput := TRUE;     // In Case of Sucess the Error Should be Redirected.
+                                 Process.StartInfo.UseShellExecute := FALSE;
+                                 Process.StartInfo.FileName := TFPath;
+                                 Process.StartInfo.Arguments := ' get ' + '"' + FileName1  + '"';
+                                 Process.StartInfo.CreateNoWindow := TRUE;
+                                 Process.Start();
+                                 ErrorMsg := Process.StandardError.ReadToEnd(); // Check Error Exist or Not
+                                 IF ErrorMsg <> '' THEN
+                                   MESSAGE('%1',ErrorMsg)
+                                 ELSE BEGIN
+                                   Result := Process.StandardOutput.ReadToEnd();// Display the Query in the Batch File.
+                                   MESSAGE('%1',Result);
+                                 END;
+                                 CLEAR(Process);
+                                 }
+                               END;
+                                }
+      { 6       ;2   ;Action    ;
+                      Name=AcGetBranch;
+                      CaptionML=ENU=Get Latest Version of Entire &Branch;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=GetSourceDoc;
+                      PromotedCategory=Category6;
+                      OnAction=BEGIN
+                                 WorkBranch := GetWorkingBranch(CurrentBranch,FALSE);
+                                 //SHELL(TFPath,' get ',WorkBranch);
+                                 //WSShell.Run(TFPath + ' get ' + WorkBranch);
+                                 //startCmd.Start(TFPath,' get '  + '"' + WorkBranch  + '"' + Collection);
+                                 startCmd.Start(TFPath,' get '  + '"' + WorkBranch  + '"');
+                               END;
+                                }
+      { 5       ;1   ;ActionGroup;
+                      CaptionML=ENU=Export / Import }
+      { 4       ;2   ;Action    ;
+                      Name=AcExport;
+                      CaptionML=ENU=&Export to Branch;
+                      Promoted=Yes;
+                      Visible=false;
+                      PromotedIsBig=Yes;
+                      Image=ExportElectronicDocument;
+                      PromotedCategory=Category7;
+                      OnAction=BEGIN
+                                 ExportToBranch(TRUE);
+                               END;
+                                }
+      { 37      ;2   ;Action    ;
+                      Name=AcCheckIn;
+                      CaptionML=ENU=CheckIn to Branch;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=StepInto;
+                      PromotedCategory=Category7;
+                      OnAction=BEGIN
+                                 ExportAndCheckIn;
+                               END;
+                                }
+      { 2       ;2   ;Action    ;
+                      Name=AcExportAll;
+                      CaptionML=ENU=Export All To Branch;
+                      Promoted=Yes;
+                      Visible=false;
+                      PromotedIsBig=Yes;
+                      Image=ExportElectronicDocument;
+                      PromotedCategory=Category7;
+                      OnAction=BEGIN
+                                 ExportAllToBranch(TRUE);
+                               END;
+                                }
+      { 3       ;2   ;Action    ;
+                      Name=AcImport;
+                      CaptionML=ENU=&Import From Branch;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Import;
+                      PromotedCategory=Category7;
+                      OnAction=BEGIN
+                                 ImportFromBranch;
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1900000001;0;Container;
+                ContainerType=ContentArea }
+
+    { 1901084101;1;Group  ;
+                CaptionML=ENU=Setup }
+
+    { 27  ;2   ;Group     ;
+                GroupType=Group }
+
+    { 1101770065;3;Field  ;
+                CaptionML=ENU=Current Branch;
+                OptionCaptionML=ENU=W1 2016,,W1 2018,,DEV 2016,,DEV 2018;
+                SourceExpr=CurrentBranch }
+
+    { 32  ;3   ;Field     ;
+                CaptionML=ENU=Text Editor;
+                SourceExpr=TextEditor;
+                Editable=FALSE }
+
+    { 31  ;3   ;Field     ;
+                CaptionML=ENU=Compare Tool;
+                SourceExpr=ComparePath;
+                Editable=FALSE }
+
+    { 30  ;3   ;Field     ;
+                CaptionML=ENU=Team Foundation Server TF.exe Path;
+                SourceExpr=TFPath;
+                Editable=FALSE }
+
+    { 1101770051;3;Field  ;
+                CaptionML=ENU=W1 2016 Branch;
+                SourceExpr=W1_2016_Branch;
+                Editable=FALSE }
+
+    { 1101770048;3;Field  ;
+                CaptionML=ENU=W1 2016 Local;
+                SourceExpr=W1_2016_Local;
+                Editable=FALSE }
+
+    { 29  ;3   ;Field     ;
+                CaptionML=ENU=W1 2018 Branch;
+                SourceExpr=W1_2018_Branch;
+                Editable=FALSE }
+
+    { 28  ;3   ;Field     ;
+                CaptionML=ENU=W1 2018 Local;
+                SourceExpr=W1_2018_Local;
+                Editable=FALSE }
+
+    { 1101770057;2;Field  ;
+                CaptionML=ENU=2016 Dev Branch;
+                SourceExpr=DEV2016Branch;
+                Editable=FALSE }
+
+    { 1101770083;2;Field  ;
+                CaptionML=ENU=2016 Dev Local;
+                SourceExpr=DEV2016Local;
+                Editable=FALSE }
+
+    { 1101770059;2;Field  ;
+                CaptionML=ENU=2018 Dev Branch;
+                SourceExpr=DEV2018Branch;
+                Editable=FALSE }
+
+    { 1101770084;2;Field  ;
+                CaptionML=ENU=2018 Dev Local;
+                SourceExpr=DEV2018Local;
+                Editable=FALSE }
+
+    { 18  ;2   ;Field     ;
+                CaptionML=ENU=From;
+                SourceExpr=FromDate;
+                OnValidate=BEGIN
+                             IF ToDate = 0D THEN
+                               ToDate := FromDate;
+                             IF (FromDate <> 0D) AND (ToDate <> 0D) THEN
+                               SETRANGE(Changed,CREATEDATETIME(FromDate,0T),CREATEDATETIME(ToDate,0T));
+                             CurrPage.UPDATE;
+                           END;
+                            }
+
+    { 26  ;2   ;Field     ;
+                CaptionML=ENU=To;
+                SourceExpr=ToDate;
+                OnValidate=BEGIN
+                             IF (FromDate = 0D) OR (FromDate > ToDate) THEN
+                               FromDate := ToDate;
+                             IF (FromDate <> 0D) AND (ToDate <> 0D) THEN
+                               SETRANGE(Changed,CREATEDATETIME(FromDate,0T),CREATEDATETIME(ToDate,0T));
+                             CurrPage.UPDATE;
+                           END;
+                            }
+
+    { 1101770015;1;Group  ;
+                GroupType=Repeater }
+
+    { 1101770014;2;Field  ;
+                SourceExpr=Changed;
+                Editable=FALSE }
+
+    { 1101770013;2;Field  ;
+                SourceExpr=User_ID;
+                Editable=FALSE }
+
+    { 1101770012;2;Field  ;
+                SourceExpr=ObjectType;
+                Editable=FALSE }
+
+    { 1101770011;2;Field  ;
+                SourceExpr=ObjectID;
+                Visible=FALSE;
+                Editable=FALSE }
+
+    { 1101770010;2;Field  ;
+                SourceExpr=ObjectName;
+                Visible=FALSE;
+                Editable=FALSE }
+
+    { 1101770009;2;Field  ;
+                SourceExpr=DatabaseName;
+                Editable=false }
+
+    { 1101770008;2;Field  ;
+                SourceExpr=ChangeType;
+                Editable=FALSE }
+
+    { 1101770007;2;Field  ;
+                SourceExpr=VersionList;
+                Editable=FALSE }
+
+    { 1101770006;2;Field  ;
+                SourceExpr=CompanyName;
+                Editable=FALSE }
+
+    { 25  ;2   ;Field     ;
+                SourceExpr=CallID;
+                Editable=true;
+                OnValidate=BEGIN
+                             SelectedRec.RESET;
+                             // IF STRPOS(USERID,'\') = 0 THEN
+                             //   SelectedRec.SETFILTER(User_ID,'%1','@*' + USERID + '*')
+                             // ELSE
+                               SelectedRec.SETFILTER(User_ID,User_ID);
+                             SelectedRec.SETRANGE(ObjectType,Rec.ObjectType);
+                             SelectedRec.SETRANGE(ObjectID,Rec.ObjectID);
+                             SelectedRec.SETFILTER(NavisionAuditID,'<>%1',NavisionAuditID);
+                             IF SelectedRec.FINDSET THEN
+                               SelectedRec.MODIFYALL(CallID,CallID,FALSE);
+                           END;
+                            }
+
+  }
+  CODE
+  {
+    VAR
+      W1_2016_Branch@1101770000 : Text[100];
+      W1_2018_Branch@1011 : Text[100];
+      DEV2016Branch@1007 : Text[100];
+      DEV2018Branch@1008 : Text[100];
+      W1_2016_Local@1101770029 : Text[100];
+      W1_2018_Local@1013 : Text[100];
+      DEV2016Local@1009 : Text[100];
+      DEV2018Local@1010 : Text[100];
+      TextEditor@1101770020 : Text[100];
+      CurrentBranch@1101770006 : 'W1 2016,,W1 2018,,DEV 2016,,DEV 2018';
+      WorkBranch@1101770007 : Text[100];
+      LocalWorkBranch@1101770030 : Text[100];
+      Selection@1101770017 : Integer;
+      CompareBranch@1101770016 : Text[100];
+      FileName1@1101770008 : Text[1024];
+      Quote@1023 : TextConst 'ENU=''';
+      tx2016tW1@1101770013 : TextConst 'ENU=2016 W1 Branch,';
+      tx2018tW1@1015 : TextConst 'ENU=2018 W1 Branch,';
+      txt2016DEV@1101770010 : TextConst 'ENU=2016 DEV Branch,';
+      FileName2@1101770009 : Text[1024];
+      MyObject@1101770018 : Record 2000000001;
+      ThisObject@1006 : Record 2000000001;
+      SelectedRec@1014 : Record 77778;
+      Window@1101770019 : Dialog;
+      txt2018DEV@1016 : TextConst 'ENU=2018 DEV Branch,';
+      Text001@1101770022 : TextConst 'ENU=Processing object #1#### #2######## #3###################\\';
+      TFPath@1101770021 : Text[250];
+      ComparePath@1101770023 : Text[100];
+      WSShell@1101770049 : Automation "{F935DC20-1CF0-11D0-ADB9-00C04FD58A0B} 1.0:{72C24DD5-D70A-438B-8A42-98424B88AFB8}:'Windows Script Host Object Model'.WshShell";
+      FileSystem@1101770050 : Automation "{F935DC20-1CF0-11D0-ADB9-00C04FD58A0B} 1.0:{0D43FE01-F093-11CF-8940-00A0C9054228}:'Windows Script Host Object Model'.FileSystemObject";
+      "-----FILE------"@1101770051 : Integer;
+      ClientFile@1101770052 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.IO.File" RUNONCLIENT;
+      ClientFileLines@1101770053 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Generic.IEnumerable`1";
+      line@1101770054 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Generic.IEnumerator`1";
+      ServerFile@1101770055 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.IO.File";
+      ServerFileLines@1101770056 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Collections.Generic.IEnumerable`1";
+      CommandText@1101770063 : Text;
+      DatabaseServer@1101770062 : Text;
+      DatabaseName@1101770061 : Text;
+      startCmd@1101770060 : DotNet "'System, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Diagnostics.Process" RUNONCLIENT;
+      DomDoc@1000 : Automation "{F5078F18-C551-11D3-89B9-0000F81FE221} 6.0:{88D96A05-F192-11D4-A65F-0040963251E5}:'Microsoft XML, v6.0'.DOMDocument60";
+      DomNode@1001 : Automation "{F5078F18-C551-11D3-89B9-0000F81FE221} 6.0:{2933BF80-7B36-11D2-B20E-00C04F983E60}:'Microsoft XML, v6.0'.IXMLDOMNode";
+      ThreeTierMgt@1002 : Codeunit 419;
+      Collection@1003 : Text[1024];
+      WorkSpace@1018 : Text[1024];
+      FromDate@1004 : Date;
+      ToDate@1005 : Date;
+      gCaption@1012 : Text;
+      temptext@1017 : Text;
+      Process@1019 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Diagnostics.Process";
+      ErrorMsg@1020 : Text;
+      Result@1021 : Text;
+      OnlyUserID@1022 : Text[50];
+
+    PROCEDURE GetWorkingBranch@1101770000(pBranch@1101770000 : 'W1 2016,,W1 2018,,DEV 2016,,DEV 2018';pUseWorkingBranch@1101770002 : Boolean) : Text[100];
+    VAR
+      MyBranch@1101770001 : Text[100];
+    BEGIN
+      CASE pBranch OF
+        pBranch::"W1 2016":
+        BEGIN
+          IF pUseWorkingBranch THEN
+            MyBranch := W1_2016_Branch
+          ELSE
+            MyBranch := W1_2016_Local;
+        END;
+
+        CurrentBranch::"W1 2018":
+        BEGIN
+          IF pUseWorkingBranch THEN
+            MyBranch := W1_2018_Branch
+          ELSE
+            MyBranch := W1_2018_Local;
+        END;
+
+        CurrentBranch::"DEV 2016":
+        BEGIN
+          IF pUseWorkingBranch THEN
+            MyBranch := DEV2016Branch
+          ELSE
+            MyBranch := DEV2016Local;
+        END;
+
+        CurrentBranch::"DEV 2018":
+        BEGIN
+          IF pUseWorkingBranch THEN
+            MyBranch := DEV2018Branch
+          ELSE
+            MyBranch := DEV2018Local;
+        END;
+
+      END;
+
+      EXIT(MyBranch);
+    END;
+
+    PROCEDURE Type2Prefix@1210130004(Type@1210130000 : 'TableData,Table,Form,Report,Dataport,Codeunit,XMLport,Menusuite,Page,Query') : Code[3];
+    VAR
+      prefix@1210130001 : Code[3];
+    BEGIN
+      CASE Type OF
+        Type::Table:
+          prefix := 'TAB';
+        Type::Form:
+          prefix := 'FOR';
+        Type::Report:
+          prefix := 'REP';
+        Type::Dataport:
+          prefix := 'DAT';
+        Type::Codeunit:
+          prefix := 'COD';
+        Type::XMLport:
+          prefix := 'XML';
+        Type::Menusuite:
+          prefix := 'MEN';
+        Type::Page:
+          prefix := 'PAG';
+        Type::Query:
+          prefix := 'QUE';
+
+        ELSE
+          prefix := 'ERR';
+      END;
+
+      EXIT(prefix)
+    END;
+
+    PROCEDURE GetFile1@1101770001(pUseWorkingBranch@1101770001 : Boolean;VAR pObj@1000 : Record 2000000001);
+    BEGIN
+      FileName1 := COPYSTR(STRSUBSTNO('%1%2.txt', Type2Prefix(pObj.Type), pObj.ID), 1, MAXSTRLEN(FileName1));
+      WorkBranch := GetWorkingBranch(CurrentBranch,TRUE);
+      LocalWorkBranch := GetWorkingBranch(CurrentBranch,FALSE);
+      IF pUseWorkingBranch THEN
+        //FileName1 := COPYSTR(WorkBranch + FileName1, 1, STRLEN(FileName1))
+        FileName1 := WorkBranch + FileName1
+      ELSE
+        //FileName1 := COPYSTR(LocalWorkBranch + FileName1, 1, STRLEN(FileName1))
+        FileName1 := LocalWorkBranch + FileName1;
+    END;
+
+    PROCEDURE GetFile2@1101770013(pUseWorkingBranch@1101770000 : Boolean;VAR pObj@1000 : Record 2000000001);
+    VAR
+      SelectedBranch@1001 : Integer;
+    BEGIN
+      //0      ,1,2      ,3,4       ,5,6
+      //W1 2016, ,W1 2018, ,DEV 2016, ,DEV 2018
+      Selection := STRMENU(tx2016tW1 + tx2018tW1 + txt2016DEV + txt2018DEV,
+                           0,'Please Select Branch to Compare...');
+
+      IF Selection = 0 THEN
+       ERROR('');
+
+      CASE Selection OF
+        1{W1 2016}      : SelectedBranch := 0;
+        2{W1 2018}      : SelectedBranch := 2;
+        3{DEV 2016}     : SelectedBranch := 4;
+        4{DEV 2018}     : SelectedBranch := 6;
+      END;
+      //CompareBranch := GetWorkingBranch(Selection - 1,pUseWorkingBranch);
+      CompareBranch := GetWorkingBranch(SelectedBranch,pUseWorkingBranch);
+
+      FileName2 := COPYSTR(STRSUBSTNO('%1%2.txt', Type2Prefix(pObj.Type), pObj.ID), 1, MAXSTRLEN(FileName2));
+      FileName2 := COPYSTR(CompareBranch + FileName2, 1, MAXSTRLEN(FileName2));
+    END;
+
+    PROCEDURE GetFileTEMP@1101770004(VAR pObj@1001 : Record 2000000001);
+    VAR
+      lPath@1000 : Text;
+    BEGIN
+      FileName1 := COPYSTR(STRSUBSTNO('%1%2.txt', Type2Prefix(pObj.Type), pObj.ID), 1, MAXSTRLEN(FileName1));
+
+      //FileName1 := COPYSTR(ThreeTierMgt.Path(ThreeTierMgt.ClientTempFileName('','txt')), 1, MAXSTRLEN(FileName1));
+      lPath := ThreeTierMgt.GetDirectoryName(ThreeTierMgt.ClientTempFileName(''));
+      //lPath := COPYSTR(lPath,1,STRLEN(lPath)-1);
+      lPath := COPYSTR(lPath,1,STRLEN(lPath));
+      FileName1 := lPath + '\' + FileName1;
+      //FileName1 := ThreeTierMgt.ClientTempFileName('','txt');
+      //FileName1 := 'C:\temp\tempObject.txt';
+
+      //FileName1 := 'C:\Temp\Objects\' + FileName1;
+    END;
+
+    PROCEDURE ExportToBranch@1101770002(pUseWorkingBranch@1101770000 : Boolean);
+    VAR
+      TempFile@1101770002 : Text[1024];
+    BEGIN
+      //////////////////////////////////////////////////////
+      // If PWorkingBranch is TRUE - Use CurrentBranch
+      // If False - export to temp Location
+      /////////////////////////////////////////////////////
+
+      CurrPage.SETSELECTIONFILTER(SelectedRec);
+      MyObject.RESET;
+      IF SelectedRec.FINDSET THEN
+      REPEAT
+        MyObject.GET(SelectedRec.ObjectType,'',SelectedRec.ObjectID);
+        MyObject.MARK(TRUE);
+      UNTIL SelectedRec.NEXT = 0;
+      MyObject.MARKEDONLY(TRUE);
+      //MyObject.SETFILTER(Type,'%1|%2|%3|%4|%5|%6|%7|%8',1,3,4,5,6,7,8,9);
+
+      //GetMyServerandDatabase;
+      //DatabaseServer := 'its-dev-02';
+      //DatabaseName := 'GLOBAL_DEV_RTC_2015_DATA';
+
+      IF MyObject.FINDSET THEN
+      BEGIN
+        Window.OPEN(Text001);
+        REPEAT
+          IF pUseWorkingBranch THEN
+            GetFile1(FALSE,MyObject)
+          ELSE
+            GetFileTEMP(MyObject);
+          Window.UPDATE(1, MyObject.Type);
+          Window.UPDATE(2, FORMAT(MyObject.ID));
+          Window.UPDATE(3, MyObject.Name);
+
+          //TempFile := ThreeTierMgt.ServerTempFileName('', 'txt');
+          //EXPORTOBJECTS(TempFile, MyObject);
+          DoExport;
+            //startCmd.Start('C:\Program Files (x86)\Microsoft Dynamics NAV\90\RoleTailored Client\finsql.exe',
+            //  STRSUBSTNO(CommandText, FileName1, DatabaseServer, DatabaseName, MyObject.Type, MyObject.ID));
+          //ClientFileLines := ServerFile.ReadAllLines(TempFile);
+          //ClientFile.WriteAllLines(FileName1, ClientFileLines);
+
+        UNTIL MyObject.NEXT = 0;
+        Window.CLOSE;
+      END;
+    END;
+
+    PROCEDURE ExportAllToBranch@3(pUseWorkingBranch@1101770000 : Boolean);
+    VAR
+      TempFile@1101770002 : Text[1024];
+    BEGIN
+      //////////////////////////////////////////////////////
+      // If PWorkingBranch is TRUE - Use CurrentBranch
+      // If False - export to temp Location
+      /////////////////////////////////////////////////////
+      //MyObject.COPYFILTERS(Rec);
+      MyObject.RESET;
+      IF FINDSET THEN
+      REPEAT
+        MyObject.GET(SelectedRec.ObjectType,'',SelectedRec.ObjectID);
+        MyObject.MARK(TRUE);
+      UNTIL NEXT = 0;
+      MyObject.MARKEDONLY(TRUE);
+
+      //GetMyServerandDatabase;
+      //DatabaseServer := 'its-dev-02';
+      //DatabaseName := 'GLOBAL_DEV_RTC_2015_DATA';
+
+      IF MyObject.FINDSET THEN
+      BEGIN
+        Window.OPEN(Text001);
+        REPEAT
+          IF pUseWorkingBranch THEN
+            GetFile1(FALSE,MyObject)
+          ELSE
+            GetFileTEMP(MyObject);
+          Window.UPDATE(1, MyObject.Type);
+          Window.UPDATE(2, FORMAT(MyObject.ID));
+          Window.UPDATE(3, MyObject.Name);
+
+          //TempFile := ThreeTierMgt.ServerTempFileName('', 'txt');
+          //EXPORTOBJECTS(TempFile, MyObject);
+          DoExport;
+            //startCmd.Start('C:\Program Files (x86)\Microsoft Dynamics NAV\90\RoleTailored Client\finsql.exe',
+            //  STRSUBSTNO(CommandText, FileName1, DatabaseServer, DatabaseName, MyObject.Type, MyObject.ID));
+          //ClientFileLines := ServerFile.ReadAllLines(TempFile);
+          //ClientFile.WriteAllLines(FileName1, ClientFileLines);
+          COMMIT;
+        UNTIL MyObject.NEXT = 0;
+        Window.CLOSE;
+      END;
+    END;
+
+    PROCEDURE ImportFromBranch@1101770003();
+    BEGIN
+      CurrPage.SETSELECTIONFILTER(SelectedRec);
+      MyObject.RESET;
+      IF SelectedRec.FINDSET THEN
+      REPEAT
+        MyObject.GET(SelectedRec.ObjectType,'',SelectedRec.ObjectID);
+        MyObject.MARK(TRUE);
+      UNTIL SelectedRec.NEXT = 0;
+      MyObject.MARKEDONLY(TRUE);
+
+      IF MyObject.FINDSET THEN
+      BEGIN
+        Window.OPEN(Text001);
+        REPEAT
+          GetFile1(FALSE,MyObject);
+          Window.UPDATE(1, MyObject.Type);
+          Window.UPDATE(2, FORMAT(MyObject.ID));
+          Window.UPDATE(3, MyObject.Name);
+          IMPORTOBJECTS(FileName1, 0);
+        UNTIL MyObject.NEXT = 0;
+        Window.CLOSE;
+      END;
+    END;
+
+    PROCEDURE ExportAndCheckIn@4();
+    VAR
+      TempFile@1101770002 : Text[1024];
+      lCallNo@1000 : Text;
+    BEGIN
+      lCallNo := '';
+      SelectedRec.RESET;
+      CurrPage.SETSELECTIONFILTER(SelectedRec);
+      MyObject.RESET;
+      IF SelectedRec.FINDSET THEN
+      REPEAT
+        IF CallID = '' THEN
+          ERROR('Call ID cannot be blank when doing a checkin');
+        IF lCallNo = '' THEN
+          lCallNo := CallID
+        ELSE
+          IF lCallNo <> CallID THEN
+            ERROR('Only one Call ID can be checked in at a time. Please select objects related to a single call');
+        MyObject.GET(SelectedRec.ObjectType,'',SelectedRec.ObjectID);
+        MyObject.MARK(TRUE);
+      UNTIL SelectedRec.NEXT = 0;
+      MyObject.MARKEDONLY(TRUE);
+
+      IF MyObject.FINDSET THEN
+      BEGIN
+        Window.OPEN(Text001);
+        REPEAT
+          GetFile1(FALSE,MyObject);
+          Window.UPDATE(1, MyObject.Type);
+          Window.UPDATE(2, FORMAT(MyObject.ID));
+          Window.UPDATE(3, MyObject.Name);
+          DoExport;
+        UNTIL MyObject.NEXT = 0;
+        SLEEP(10000);
+        Window.CLOSE;
+        WorkBranch := GetWorkingBranch(CurrentBranch,FALSE);
+        {
+        startCmd.Start(WorkBranch,' tf checkin /comment:'  + '"' + CallID  + '"' +
+                              ' /noprompt' +
+                              ' /notes:' + '"Call ID"'  + '"' + CallID  + '"' + '"Description"'  + '"' + CallID  + '"' +
+                              ' /force');
+
+          //tf checkin [/author:author name] [/comment:("comment"|@comment file)]
+          //[/noprompt] [/notes:("Note Name"="note text"|@notefile)]
+          //[/override:(reason|@reasonfile)] [/recursive] [/saved] [/validate] [itemspec] [/bypass] [/force] [/noautoresolve]  [/login:username,[password]] [/new]
+        }
+        WSShell.Run('C:\checkin.bat "' + WorkBranch + '" "' + TFPath + '" "' + CallID + '"');
+
+        SelectedRec.RESET;
+        IF MyObject.FINDSET THEN
+        REPEAT
+          SelectedRec.SETRANGE(ObjectType,MyObject.Type);
+          SelectedRec.SETRANGE(ObjectID,MyObject.ID);
+          SelectedRec.SETRANGE(CallID,lCallNo);
+          SelectedRec.DELETEALL(FALSE);
+        UNTIL MyObject.NEXT = 0;
+        CurrPage.UPDATE(FALSE);
+      END;
+    END;
+
+    PROCEDURE GetLatestVersion@1101770006();
+    BEGIN
+      CurrPage.SETSELECTIONFILTER(SelectedRec);
+      MyObject.RESET;
+      IF SelectedRec.FINDSET THEN
+      REPEAT
+        MyObject.GET(SelectedRec.ObjectType,'',SelectedRec.ObjectID);
+        MyObject.MARK(TRUE);
+      UNTIL SelectedRec.NEXT = 0;
+      MyObject.MARKEDONLY(TRUE);
+
+      IF MyObject.FINDSET THEN
+      BEGIN
+        Window.OPEN(Text001);
+        REPEAT
+          GetFile1(TRUE,MyObject);
+          Window.UPDATE(1, MyObject.Type);
+          Window.UPDATE(2, FORMAT(MyObject.ID));
+          Window.UPDATE(3, MyObject.Name);
+          //SHELL(TFPath,' get ',FileName1);
+          //WSShell.Run(TFPath + ' get ' + FileName1);
+          startCmd.Start(TFPath,' get '  + '"' + FileName1   + '"' + Collection);
+          SLEEP(10000);
+        UNTIL MyObject.NEXT = 0;
+        Window.CLOSE;
+      END;
+    END;
+
+    PROCEDURE ReadINI@1101770005();
+    VAR
+      MySetupFile@1101770000 : File;
+      BufferTxt@1101770002 : Text[250];
+      MyVar@1101770001 : Text[80];
+      MyPath@1101770003 : Text[250];
+    BEGIN
+      //MySetupFile.TEXTMODE(TRUE);
+      //MySetupFile.WRITEMODE(FALSE);
+      IF NOT ClientFile.Exists('C:\SourceControlSetupRTC.ini') THEN
+        ERROR('No C:\SourceControlSetupRTC.ini file exist! Please make sure the INI file exist and is located in your C Drive');
+
+      //CLEAR(FileSystem);
+      //CREATE
+      //FileSystem.OpenTextFile('C:\DATA\SourceControlSetup.ini')
+      ClientFileLines := ClientFile.ReadAllLines('C:\SourceControlSetupRTC.ini');
+
+      line := ClientFileLines.GetEnumerator;
+      WHILE line.MoveNext DO
+      BEGIN
+        //MESSAGE(FORMAT(line.Current));
+        BufferTxt := FORMAT(line.Current);
+        BufferTxt := COPYSTR(BufferTxt,STRPOS(BufferTxt,'#') +1);
+        MyVar := COPYSTR(BufferTxt,1,STRPOS(BufferTxt,'#') - 1);
+        MyPath := COPYSTR(BufferTxt,STRPOS(BufferTxt,'#') + 1);
+        CASE MyVar OF
+          'TFPath': TFPath := MyPath;
+          'ComparePath': ComparePath := MyPath;
+          'TextEditor': TextEditor := MyPath;
+          'WorkSpace' : WorkSpace := MyPath;
+          'W12016Branch': W1_2016_Branch := MyPath;
+          'W12016Local': W1_2016_Local := MyPath;
+          'W12018Branch': W1_2018_Branch := MyPath;
+          'W12018Local': W1_2018_Local := MyPath;
+          'DEV2016Branch' : DEV2016Branch := MyPath;
+          'DEV2016Local' : DEV2016Local := MyPath;
+          'DEV2018Branch' : DEV2018Branch := MyPath;
+          'DEV2018Local' : DEV2018Local := MyPath;
+        END;
+      END;
+
+      //CurrForm.UPDATE;
+    END;
+
+    LOCAL PROCEDURE GetMyServerandDatabase@1();
+    VAR
+      MyServer@1000 : Record 2000000047;
+    BEGIN
+      //IF ISCLEAR(DomDoc) THEN
+      //  CREATE(DomDoc,TRUE,TRUE);
+
+      CLEAR(DomDoc);
+      CREATE(DomDoc,TRUE,TRUE);
+
+      DomDoc.load(APPLICATIONPATH + 'CustomSettings.config');
+      DomNode :=
+        DomDoc.selectSingleNode(
+          '//appSettings/add[@key=''DatabaseServer'']');
+      DatabaseServer := DomNode.attributes.item(1).text;
+
+      DomNode :=
+        DomDoc.selectSingleNode(
+          '//appSettings/add[@key=''DatabaseName'']');
+      DatabaseName := DomNode.attributes.item(1).text;
+    END;
+
+    LOCAL PROCEDURE DoExport@2();
+    BEGIN
+      startCmd.Start('C:\Program Files (x86)\Microsoft Dynamics NAV\90\RoleTailored Client\finsql.exe',
+        STRSUBSTNO(CommandText, FileName1, DatabaseServer, DatabaseName, MyObject.Type, MyObject.ID));
+    END;
+
+    EVENT startCmd@1101770060::OutputDataReceived@89(sender@1101770001 : Variant;e@1101770000 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Diagnostics.DataReceivedEventArgs");
+    BEGIN
+    END;
+
+    EVENT startCmd@1101770060::ErrorDataReceived@90(sender@1101770001 : Variant;e@1101770000 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Diagnostics.DataReceivedEventArgs");
+    BEGIN
+    END;
+
+    EVENT startCmd@1101770060::Exited@91(sender@1101770001 : Variant;e@1101770000 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.EventArgs");
+    BEGIN
+    END;
+
+    EVENT startCmd@1101770060::Disposed@92(sender@1101770001 : Variant;e@1101770000 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.EventArgs");
+    BEGIN
+    END;
+
+    EVENT DomDoc@1000::ondataavailable@198();
+    BEGIN
+    END;
+
+    EVENT DomDoc@1000::onreadystatechange@-609();
+    BEGIN
+    END;
+
+    EVENT Process@1019::OutputDataReceived@90(sender@1001 : Variant;e@1000 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Diagnostics.DataReceivedEventArgs");
+    BEGIN
+    END;
+
+    EVENT Process@1019::ErrorDataReceived@91(sender@1001 : Variant;e@1000 : DotNet "'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Diagnostics.DataReceivedEventArgs");
+    BEGIN
+    END;
+
+    EVENT Process@1019::Exited@92(sender@1001 : Variant;e@1000 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.EventArgs");
+    BEGIN
+    END;
+
+    EVENT Process@1019::Disposed@93(sender@1001 : Variant;e@1000 : DotNet "'mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.EventArgs");
+    BEGIN
+    END;
+
+    BEGIN
+    {
+      Changed for Source Control Demo
+    }
+    END.
+  }
+}
+
+OBJECT Page 77779 SourceControl Setup
+{
+  OBJECT-PROPERTIES
+  {
+    Date=28/02/19;
+    Time=12:05:26 PM;
+    Modified=Yes;
+    Version List=;
+  }
+  PROPERTIES
+  {
+    SourceTable=Table77777;
+    DelayedInsert=Yes;
+    PageType=List;
+    OnOpenPage=BEGIN
+                 SETRANGE(User_ID,USERID);
+               END;
+
+  }
+  CONTROLS
+  {
+    { 1   ;0   ;Container ;
+                ContainerType=ContentArea }
+
+    { 2   ;1   ;Group     ;
+                Name=Group;
+                GroupType=Repeater }
+
+    { 3   ;2   ;Field     ;
+                SourceExpr=User_ID }
+
+    { 4   ;2   ;Field     ;
+                SourceExpr=Type }
+
+    { 10  ;2   ;Field     ;
+                SourceExpr=Name }
+
+    { 5   ;2   ;Field     ;
+                SourceExpr="Local Repo Path" }
+
+    { 13  ;2   ;Field     ;
+                SourceExpr="Local Project Path" }
+
+    { 6   ;2   ;Field     ;
+                SourceExpr="Remote Repo Path" }
+
+    { 12  ;2   ;Field     ;
+                SourceExpr="Upstream Repo name" }
+
+    { 7   ;2   ;Field     ;
+                SourceExpr=Branch }
+
+    { 8   ;2   ;Field     ;
+                SourceExpr="DB Server" }
+
+    { 9   ;2   ;Field     ;
+                SourceExpr="DB Name" }
+
+    { 11  ;2   ;Field     ;
+                SourceExpr=Default }
+
+  }
+  CODE
+  {
+
+    BEGIN
+    END.
+  }
+}
+
