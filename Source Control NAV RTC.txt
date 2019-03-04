@@ -123,8 +123,8 @@ OBJECT Page 77777 Source Control
 {
   OBJECT-PROPERTIES
   {
-    Date=01/03/19;
-    Time=11:01:50 AM;
+    Date=04/03/19;
+    Time=09:53:42 AM;
     Modified=Yes;
     Version List=;
   }
@@ -843,7 +843,6 @@ OBJECT Page 77777 Source Control
     PROCEDURE ImportFromRepo@1101770003();
     BEGIN
       CurrPage.SETSELECTIONFILTER(MyObject);
-
       IF MyObject.FINDSET THEN
       BEGIN
         Window.OPEN(Text001);
@@ -863,6 +862,26 @@ OBJECT Page 77777 Source Control
           REPEAT
             SLEEP(1000);
           UNTIL PSRunner.IsCompleted;
+
+          //compile imported
+          PSRunner.AddCommand('Compile-NAVApplicationObject');
+          PSRunner.AddParameter('DatabaseName',SCCurrentRepo."DB Name");
+          PSRunner.AddParameter('DatabaseServer',SCCurrentRepo."DB Server");
+          PSRunner.AddParameter('Filter','Type=' + FORMAT(MyObject.Type) + ';Id='+FORMAT(MyObject.ID));
+          //PSRunner.AddParameter('Force',TRUE);
+          PSRunner.AddParameter('Verbose',TRUE);
+          PSRunner.WriteEventOnError(TRUE);
+          PSRunner.BeginInvoke;
+          REPEAT
+            SLEEP(1000);
+          UNTIL PSRunner.IsCompleted;
+
+          SCMonitor.RESET;
+          SCMonitor.SETRANGE(ObjectType,MyObject.Type);
+          SCMonitor.SETRANGE(ObjectID,MyObject.ID);
+          IF SCMonitor.FINDSET THEN
+            SCMonitor.DELETEALL;
+
           //IMPORTOBJECTS(FileName1, 0);
         UNTIL MyObject.NEXT = 0;
         Window.CLOSE;
@@ -1012,6 +1031,7 @@ OBJECT Page 77777 Source Control
       // pFileOnly = TRUE   -> View the History of selected File
       //////////////////////////////////////
 
+      GetFile1(SCCurrentRepo,Rec,FALSE);
       lTempPath := GetPathTEMP;
       IF pFileOnly THEN
         lLogFile := GetFileOnly(Rec) + '.log'
@@ -1022,7 +1042,7 @@ OBJECT Page 77777 Source Control
       PSRunner.AddParameter('LogPath',lTempPath + lLogFile);
       PSRunner.AddParameter('Editor',TextEditor);
       IF pFileOnly THEN
-        PSRunner.AddParameter('File',lLogFile);
+        PSRunner.AddParameter('File',FileName1);
       PSRunner.WriteEventOnError(TRUE);
       PSRunner.BeginInvoke;
       REPEAT
@@ -1257,8 +1277,8 @@ OBJECT Page 77778 Source Control Monitor Lines
 {
   OBJECT-PROPERTIES
   {
-    Date=01/03/19;
-    Time=01:01:11 PM;
+    Date=04/03/19;
+    Time=08:31:06 AM;
     Modified=Yes;
     Version List=;
   }
@@ -1321,6 +1341,9 @@ OBJECT Page 77778 Source Control Monitor Lines
   {
 
     BEGIN
+    {
+      Source Control Management
+    }
     END.
   }
 }
