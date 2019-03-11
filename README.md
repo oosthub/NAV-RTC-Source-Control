@@ -22,6 +22,10 @@ The Included objects Are:
 Setup Table with Repo Info, PowerShell Script Locations, Text Editor Path and Compare Tool Path
 #### Table77778 “SourceControlMonitor”
 Table containing Changes of Objects in the Database
+#### Page77775 “Source Control List Part”
+The Dashboard List Part Page – Used on Dev Dash
+#### Page77776 “Development Dash”
+The Development Dashboard – Can be used as a dash and performs same functions as Page77777
 #### Page77777 “Source Control”
 The Main Application Page – Run This After Setup
 #### Page77778 “Source Control Monitor Lines”
@@ -101,6 +105,7 @@ Run the Main Page in NAV (Page77777 – Source Control). If you did your setups 
 ## Step 2
 On the Actions Tab, Click on the “Setup Local Repo’s”. This will Clone all the repos in your setup to your local machine (into the {SourceParentPath} you defined). If it Already exists, (i.e. the folder is not empty) it will skip over it.
 Once this process is complete, you are ready to use Source Control. One of the First things you would want to do is Check your Repo Status… Click on “Repo Status” and wait for the result to open in your Favourite Text Editor.
+You can also setup your dashboard in the respective DB to use the development dash. It has all the functionality directly on the dash that is included in this feature.
 
 # FINAL WORDS
 Hope you Enjoy this Tool and that you find it useful. Feel free to leave me a comment or question. Please just remember that I might not respond timeously to all questions.
